@@ -122,4 +122,5 @@ dmypy.json
 .pyre/
 
 # generated datasets
+datasets/*
 *.json

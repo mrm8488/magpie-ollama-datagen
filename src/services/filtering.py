@@ -1,10 +1,14 @@
 # You must `pip install langdetect dataset` in order to run the following code:
 import argparse
 import json
+import os
 from typing import Any, Dict, List
 
-from datasets import load_dataset
 from langdetect import detect
+
+from datasets import load_dataset
+
+DEFAULT_STORE_DIR = "datasets/filtered"
 
 
 # Define the filter strategy interface
@@ -20,7 +24,7 @@ class BasicFilterStrategy(FilterStrategy):
 
 class LengthFilterStrategy(FilterStrategy):
     def __init__(self, min_chars: int = 10):
-        self.num_chars = min_chars
+        self.min_chars = min_chars
 
     def apply(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [
@@ -66,14 +70,17 @@ class Filter:
     ):
         with open(filename, "w") as f:
             json.dump(data, f, indent=4)
-        dataset = load_dataset("json", data_files=filename)
-        dataset.push_to_hub(filename.split(".")[0], token=hf_token, private=True)
+
+        if push_to_hub:
+            dataset = load_dataset("json", data_files=filename)
+            hub_name = filename.split("/")[-1].split(".")[0]
+            dataset.push_to_hub(hub_name, token=hf_token, private=True)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--file_name", type=str, default="dataset_llama3_5000_samples_es.json"
+        "--file_name", type=str, required=True, help="Path to the dataset file"
     )
     parser.add_argument("--filter_lang", type=str, default="es")
     parser.add_argument("--min_chars", type=int, default=10)
@@ -83,17 +90,22 @@ def main():
         nargs="+",
         default=["basic", "length", "language"],
     )
+    parser.add_argument("--push_to_hub", action="store_true")
     parser.add_argument("--hf_token", type=str, default=None)
     args = parser.parse_args()
+
+    if args.push_to_hub and args.hf_token is None:
+        print("Please provide a HuggingFace API token to push the dataset to the Hub.")
+        exit(1)
+
     file_name = args.file_name
     print(f"Filtering file: {file_name}")
     print(f"Filtering language: {args.filter_lang}")
     print(f"Filtering strategies: {args.filter_strategies}")
 
-    dataset = []
-    with open(file_name, "r") as f:
-        dataset = json.load(f)
-    print(f"Loaded {len(dataset)} samples from {file_name} before filtering")
+    os.makedirs(DEFAULT_STORE_DIR, exist_ok=True)
+
+    dataset = [json.loads(line) for line in open(file_name, "r")]
 
     filtering_strategies = {
         "basic": BasicFilterStrategy(),
@@ -109,13 +121,23 @@ def main():
 
     # save the filtered data
     final_num_examples = len(dataset)
-    print("Saving filtered data and uploading to the Hub...")
-    filtered_file_name = file_name.replace(
-        ".json", f"_{final_num_examples}_filtered.json"
-    ).replace(":", "-")
-    filter.save_and_upload(
-        dataset, filtered_file_name, push_to_hub=True, hf_token=args.hf_token
-    )
+    if final_num_examples == 0:
+        print("No examples left after filtering. Exiting...")
+        exit(0)
+    else:
+        print("Saving filtered data and uploading to the Hub...")
+        filtered_file_name = (
+            file_name.replace(".json", f"_{final_num_examples}_filtered.json")
+            .replace(":", "-")
+            .split("/")[-1]
+        )
+        print(f"Filtered file name vale: {filtered_file_name}")
+        filter.save_and_upload(
+            dataset,
+            f"{DEFAULT_STORE_DIR}/{filtered_file_name}",
+            push_to_hub=args.push_to_hub,
+            hf_token=args.hf_token,
+        )
 
 
 if __name__ == "__main__":

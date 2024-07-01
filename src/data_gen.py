@@ -1,11 +1,16 @@
 # Make sure have your ollama server runing
 # and pip install tqdm datasets
 
-import urllib.request
-import json
 import argparse
+import json
+import os
+import urllib.request
+
 from tqdm import tqdm
+
 from datasets import load_dataset
+
+DEFAULT_STORE_DIR = "datasets/raw"
 
 # ollama default URL
 URL = "http://localhost:11434/api/chat"
@@ -57,7 +62,7 @@ def extract_instruction(text):
     for content in text.split("\n"):
         if content:
             return content.strip()
-        
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -90,8 +95,10 @@ def main():
         print("Please provide a HuggingFace API token to push the dataset to the Hub.")
         exit(1)
 
+    os.makedirs(DEFAULT_STORE_DIR, exist_ok=True)
+
     output_file_name = (
-        f"dataset_{args.model}_{args.num_samples}_samples_{args.lang}.json"
+        f"{DEFAULT_STORE_DIR}/{args.model}_{args.num_samples}_samples_{args.lang}.json"
     )
 
     print("Creating dataset with the following parameters:")
@@ -127,10 +134,9 @@ def main():
 
     if args.push_to_hub:
         dataset = load_dataset("json", data_files=output_file_name)
-        dataset.push_to_hub(
-            output_file_name.split(".")[0], token=args.hf_token, private=True
-        )
+        hub_name = output_file_name.split("/")[-1].split(".")[0]
+        dataset.push_to_hub(hub_name, token=args.hf_token, private=True)
 
 
 if __name__ == "__main__":
-   main()
+    main()
