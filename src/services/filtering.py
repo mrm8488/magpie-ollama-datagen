@@ -82,7 +82,7 @@ def main():
     parser.add_argument(
         "--file_name", type=str, required=True, help="Path to the dataset file"
     )
-    parser.add_argument("--filter_lang", type=str, default="es")
+    parser.add_argument("--filter_lang", type=str, default="en")
     parser.add_argument("--min_chars", type=int, default=10)
     parser.add_argument(
         "--filter_strategies",

@@ -31,5 +31,5 @@ python src/dataset_gen.py --model llama3 --lang es --num_samples 1000 --push_to_
 
 ## Filtering the generated dataset
 ```bash
-python src/services/filtering.py --hf_token <YOUR_HUGGINGFACE_TOKEN> 
+python src/services/filtering.py --filter_lang es --push_to_hub --hf_token <YOUR_HUGGINGFACE_TOKEN> 
 ```
