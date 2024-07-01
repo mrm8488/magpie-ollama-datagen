@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "magpie-ollama-datagen"
+version = "0.1.0"
+description = ""
+authors = ["Manuel Romero <mrm8488@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+langdetect = "^1.0.9"
+tqdm = "^4.66.4"
+datasets = "^2.20.0"
+
+
+[tool.poetry.group.dev.dependencies]
+isort = "^5.13.2"
+black = "^24.4.2"
+flake8 = "^7.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
