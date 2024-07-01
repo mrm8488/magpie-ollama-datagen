@@ -1,6 +1,15 @@
 # Synthetic Instruction Dataset Generation
 This repo will allow you to create *multilingual* synthetic instructions datasets using the [MAGPIE](https://arxiv.org/abs/2406.08464) method and `ollama`.
 
+**Important Note:** The instruction datasets created here are for educational purposes. However, it is the users' duty to ensure that their use adheres to the terms of the relevant licensing agreements with Meta AI's Llama 3.
+
+## Prerequisites
+- Git
+- Python 3.8 or higher
+- Poetry
+- ollama
+
+
 ## Installation
 1. Clone this repo
 ```bash
