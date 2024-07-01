@@ -23,7 +23,7 @@ poetry install
 
 3. Download the `ollama` model
 ```bash
-ollama rum llama3
+ollama run llama3
 ```
 
 4. Create a server with the `ollama` model
