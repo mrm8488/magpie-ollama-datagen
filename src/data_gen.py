@@ -6,9 +6,8 @@ import json
 import os
 import urllib.request
 
-from tqdm import tqdm
-
 from datasets import load_dataset
+from tqdm import tqdm
 
 DEFAULT_STORE_DIR = "datasets/raw"
 
@@ -75,7 +74,10 @@ def main():
         help="Print each generated sample",
     )
     parser.add_argument(
-        "--lang", choices=[lang for lang in lang_dict.keys()], default="en", help="Language to generate samples in"
+        "--lang",
+        choices=[lang for lang in lang_dict.keys()],
+        default="en",
+        help="Language to generate samples in",
     )
     parser.add_argument(
         "--push_to_hub",

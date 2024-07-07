@@ -4,11 +4,13 @@ import json
 import os
 from typing import Any, Dict, List
 
-from langdetect import detect
-
 from datasets import load_dataset
+from langdetect import detect
+from sentence_transformers import SentenceTransformer
 
 DEFAULT_STORE_DIR = "datasets/filtered"
+DEFAULT_EMBEDDING_MODEL_ID = "all-MiniLM-L6-v2" # Hugging Face Sentence Transformer model ID
+DEFAULT_SIMILARITY_THRESHOLD = 0.7
 
 
 # Define the filter strategy interface
@@ -51,6 +53,32 @@ class LanguageFilterStrategy(FilterStrategy):
         return filtered_data
 
 
+class SemanticFilterStrategy(FilterStrategy):
+    def __init__(self, model_id: str, similarity_threshold: float):
+        self.model = SentenceTransformer(model_id)
+        self.similarity_threshold = similarity_threshold
+
+    def apply(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        print("Encoding sentences for semantic filtering...")
+        instructions = [d["instruction"] for d in data]
+        outputs = [d["output"] for d in data]
+
+        instruction_embeddings = self.model.encode(instructions, show_progress_bar=True)
+        output_embeddings = self.model.encode(outputs, show_progress_bar=True)
+
+        filtered_data = []
+        print("Applying semantic filter...")
+        for i, d in enumerate(tqdm(data)):
+            similarity = cosine_similarity(
+                instruction_embeddings[i].reshape(1, -1),
+                output_embeddings[i].reshape(1, -1),
+            )[0][0]
+            if similarity >= self.similarity_threshold:
+                filtered_data.append(d)
+
+        return filtered_data
+
+
 class Filter:
     def __init__(self, strategy: FilterStrategy):
         self.strategy = strategy
@@ -84,13 +112,16 @@ def main():
     )
     # check `langdetect` lang codes here: https://github.com/Mimino666/langdetect?tab=readme-ov-file#languages
     parser.add_argument("--filter_lang", type=str, default="en")
-    parser.add_argument("--min_chars", type=int, default=10)
+    parser.add_argument("--min_chars", type=int, default=10, help="Minimum number of characters in the instruction must have")
     parser.add_argument(
         "--filter_strategies",
-        choices=["basic", "length", "language"],
+        choices=["basic", "length", "language", "semantic"],
         nargs="+",
         default=["basic", "length", "language"],
+        help="Filtering strategies to apply",
     )
+    parser.add_argument("--model_id", type=str, default=DEFAULT_EMBEDDING_MODEL_ID, help="Sentence Transformer model ID")
+    parser.add_argument("--similarity_threshold", type=float, default=DEFAULT_SIMILARITY_THRESHOLD, help="Similarity threshold for semantic filtering")
     parser.add_argument("--push_to_hub", action="store_true")
     parser.add_argument("--hf_token", type=str, default=None)
     args = parser.parse_args()
@@ -112,6 +143,7 @@ def main():
         "basic": BasicFilterStrategy(),
         "length": LengthFilterStrategy(),
         "language": LanguageFilterStrategy(args.filter_lang),
+        "semantic": SemanticFilterStrategy(args.model_id, args.similarity_threshold),
     }
 
     for strategy in args.filter_strategies:
