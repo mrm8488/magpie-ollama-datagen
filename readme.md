@@ -34,14 +34,35 @@ ollama server llama3
 
 ## 🚀 Example of usage
 ```bash
-python src/dataset_gen.py --model llama3 --lang es --num_samples 1000 --push_to_hub --hf_token <YOUR_HUGGINGFACE_TOKEN>
+python src/dataset_gen.py \
+--model llama3 \
+--lang es \
+--num_samples 1000 \
+--push_to_hub \
+--hf_token <YOUR_HUGGINGFACE_TOKEN>
 ```
 
 
 ## 🔍 Filtering the generated dataset
 ```bash
-python src/services/filtering.py --filter_lang es --push_to_hub --hf_token <YOUR_HUGGINGFACE_TOKEN>
+python src/services/filtering.py \
+--filter_lang es \
+--push_to_hub \
+--hf_token <YOUR_HUGGINGFACE_TOKEN>
 ```
+
+## Observations
+
+1. Language: Spanish
+1.1 Model: llama3 (llama3-8b-instruct)
+The examples generated are very Q&A-like.
+1.2 Model: phi3 (phi3-mini and medium)
+The examples generated are more instruction-like.
+
+2. Language: Deutsch
+2.1 Model: llama3 (llama3-8b-instruct)
+The examples tend to be very repetitive.
+
 
 ## License
 ```text

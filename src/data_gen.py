@@ -22,7 +22,7 @@ query_templates = {
 }
 
 # add more languages as needed
-lang_dict = {"en": "", "es": "spanish"}
+lang_dict = {"en": "", "es": "spanish", "de": "deutsch"}
 
 
 def make_query_template(model, lang):
@@ -75,7 +75,7 @@ def main():
         help="Print each generated sample",
     )
     parser.add_argument(
-        "--lang", choices=["en", "es"], default="en", help="Language of the dataset"
+        "--lang", choices=[lang for lang in lang_dict.keys()], default="en", help="Language to generate samples in"
     )
     parser.add_argument(
         "--push_to_hub",
