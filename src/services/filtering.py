@@ -50,7 +50,8 @@ class LanguageFilterStrategy(FilterStrategy):
                 result = detect(d["instruction"])
                 if result == self.lang:
                     filtered_data.append(d)
-            except:
+            except Exception as e:
+                print(f"Error detecting language for instruction: {d['instruction']}")
                 continue
         return filtered_data
 
