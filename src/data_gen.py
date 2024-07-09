@@ -6,8 +6,9 @@ import json
 import os
 import urllib.request
 
-from datasets import load_dataset
 from tqdm import tqdm
+
+from datasets import load_dataset
 
 DEFAULT_STORE_DIR = "datasets/raw"
 

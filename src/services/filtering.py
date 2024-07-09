@@ -1,15 +1,17 @@
-# You must `pip install langdetect dataset` in order to run the following code:
 import argparse
 import json
 import os
 from typing import Any, Dict, List
 
-from datasets import load_dataset
+import numpy as np
 from langdetect import detect
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+from datasets import load_dataset
 
 DEFAULT_STORE_DIR = "datasets/filtered"
-DEFAULT_EMBEDDING_MODEL_ID = "all-MiniLM-L6-v2" # Hugging Face Sentence Transformer model ID
+DEFAULT_EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"  # Hugging Face Sentence Transformer model ID
 DEFAULT_SIMILARITY_THRESHOLD = 0.7
 
 
@@ -61,22 +63,30 @@ class SemanticFilterStrategy(FilterStrategy):
     def apply(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         print("Encoding sentences for semantic filtering...")
         instructions = [d["instruction"] for d in data]
-        outputs = [d["output"] for d in data]
+        instruction_embeddings = self.model.encode(instructions)
+        num_examples = instruction_embeddings.shape[0]
+        # Normalize embeddings for cosine similarity
+        normalized_embeddings = instruction_embeddings / np.linalg.norm(
+            instruction_embeddings, axis=1, keepdims=True
+        )
+        # Compute pairwise cosine similarities
+        similarities = cosine_similarity(normalized_embeddings)
+        # Set diagonal to 0 to ignore self-similarity
+        np.fill_diagonal(similarities, 0)
+        # Find instructions to keep
+        to_keep = np.ones(num_examples, dtype=bool)
+        for i in range(num_examples):
+            if to_keep[i]:
+                # Mark similar instructions for removal
+                similar_indices = np.where(similarities[i] > self.similarity_threshold)[
+                    0
+                ]
+                to_keep[similar_indices] = False
+                # Keep the current sentence
+                to_keep[i] = True
 
-        instruction_embeddings = self.model.encode(instructions, show_progress_bar=True)
-        output_embeddings = self.model.encode(outputs, show_progress_bar=True)
-
-        filtered_data = []
-        print("Applying semantic filter...")
-        for i, d in enumerate(tqdm(data)):
-            similarity = cosine_similarity(
-                instruction_embeddings[i].reshape(1, -1),
-                output_embeddings[i].reshape(1, -1),
-            )[0][0]
-            if similarity >= self.similarity_threshold:
-                filtered_data.append(d)
-
-        return filtered_data
+        # return filtered data
+        return [d for d, keep in zip(data, to_keep) if keep]
 
 
 class Filter:
@@ -112,7 +122,12 @@ def main():
     )
     # check `langdetect` lang codes here: https://github.com/Mimino666/langdetect?tab=readme-ov-file#languages
     parser.add_argument("--filter_lang", type=str, default="en")
-    parser.add_argument("--min_chars", type=int, default=10, help="Minimum number of characters in the instruction must have")
+    parser.add_argument(
+        "--min_chars",
+        type=int,
+        default=10,
+        help="Minimum number of characters in the instruction must have",
+    )
     parser.add_argument(
         "--filter_strategies",
         choices=["basic", "length", "language", "semantic"],
@@ -120,8 +135,18 @@ def main():
         default=["basic", "length", "language"],
         help="Filtering strategies to apply",
     )
-    parser.add_argument("--model_id", type=str, default=DEFAULT_EMBEDDING_MODEL_ID, help="Sentence Transformer model ID")
-    parser.add_argument("--similarity_threshold", type=float, default=DEFAULT_SIMILARITY_THRESHOLD, help="Similarity threshold for semantic filtering")
+    parser.add_argument(
+        "--model_id",
+        type=str,
+        default=DEFAULT_EMBEDDING_MODEL_ID,
+        help="Sentence Transformer model ID",
+    )
+    parser.add_argument(
+        "--similarity_threshold",
+        type=float,
+        default=DEFAULT_SIMILARITY_THRESHOLD,
+        help="Similarity threshold for semantic filtering",
+    )
     parser.add_argument("--push_to_hub", action="store_true")
     parser.add_argument("--hf_token", type=str, default=None)
     args = parser.parse_args()
@@ -137,15 +162,27 @@ def main():
 
     os.makedirs(DEFAULT_STORE_DIR, exist_ok=True)
 
+    # Load the dataset
     dataset = [json.loads(line) for line in open(file_name, "r")]
 
-    filtering_strategies = {
-        "basic": BasicFilterStrategy(),
-        "length": LengthFilterStrategy(),
-        "language": LanguageFilterStrategy(args.filter_lang),
-        "semantic": SemanticFilterStrategy(args.model_id, args.similarity_threshold),
-    }
+    # build strategies
+    filtering_strategies = dict()
 
+    if "basic" in args.filter_strategies:
+        filtering_strategies["basic"] = BasicFilterStrategy()
+
+    if "length" in args.filter_strategies:
+        filtering_strategies["length"] = LengthFilterStrategy(args.min_chars)
+
+    if "language" in args.filter_strategies:
+        filtering_strategies["language"] = LanguageFilterStrategy(args.filter_lang)
+
+    if "semantic" in args.filter_strategies:
+        filtering_strategies["semantic"] = SemanticFilterStrategy(
+            args.model_id, args.similarity_threshold
+        )
+
+    # apply filtering strategies
     for strategy in args.filter_strategies:
         print(f"Starting {strategy} filtering...")
         filter = Filter(filtering_strategies[strategy])
