@@ -53,7 +53,8 @@ def query_model(prompt, model, url=URL, role="user"):
             if not line:
                 break
             response_json = json.loads(line)
-            response_data += response_json["message"]["content"]
+            if "message" in response_json:
+                response_data += response_json["message"]["content"]
 
     return response_data
 
